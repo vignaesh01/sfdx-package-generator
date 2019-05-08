@@ -9,7 +9,7 @@
 		"sfdx",
 		"salesforce",
 		"package.xml",
-		"metadata"
+		"metadata","salesforce package.xml generator"
 	],
 	"engines": {
 		"vscode": "^1.26.0"
