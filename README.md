@@ -5,8 +5,8 @@ This extension provides an User Interface to choose metadata components for Pack
 ## Prerequisites
 Before you set up Salesforce Package.xml Generator Extension for VS Code, make sure that you have these essentials.
 
--Salesforce Extensions for Visual Studio Code
--Visual Studio Code v1.26 or later
+- Salesforce Extensions for Visual Studio Code
+- Visual Studio Code v1.26 or later
 
 ## Screenshots
 ![Screenshot 1](sfdx-gen-pack1.png)
