@@ -5,6 +5,7 @@
 	"version": "0.0.6",
 	"publisher": "VignaeshRamA",
 	"repository": "https://github.com/vignaesh01/sfdx-package-generator",
+	"icon" :"icon.png",
 	"keywords": [
 		"sfdx",
 		"salesforcedx",
