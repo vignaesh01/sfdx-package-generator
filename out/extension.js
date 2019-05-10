@@ -55,6 +55,7 @@ class CodingPanel {
         this.PACKAGE_END = '</Package>';
         this.NEW_LINE = '\n';
         this.VERSION_NUM = '45.0';
+        this.CHAR_TAB = '\t';
         this._panel = panel;
         this._extensionPath = extensionPath;
         // Set the webview's initial html content
@@ -182,14 +183,14 @@ class CodingPanel {
             if (!components || components.length == 0) {
                 continue;
             }
-            xmlString += this.TYPES_START + this.NEW_LINE;
+            xmlString += this.CHAR_TAB + this.TYPES_START + this.NEW_LINE;
             for (const component of components) {
-                xmlString += this.MEMBERS_START + component + this.MEMBERS_END + this.NEW_LINE;
+                xmlString += this.CHAR_TAB + this.CHAR_TAB + this.MEMBERS_START + component + this.MEMBERS_END + this.NEW_LINE;
             }
-            xmlString += this.NAME_START + mType + this.NAME_END + this.NEW_LINE;
-            xmlString += this.TYPES_END + this.NEW_LINE;
+            xmlString += this.CHAR_TAB + this.CHAR_TAB + this.NAME_START + mType + this.NAME_END + this.NEW_LINE;
+            xmlString += this.CHAR_TAB + this.TYPES_END + this.NEW_LINE;
         }
-        xmlString += this.VERSION_START + this.VERSION_NUM + this.VERSION_END + this.NEW_LINE;
+        xmlString += this.CHAR_TAB + this.VERSION_START + this.VERSION_NUM + this.VERSION_END + this.NEW_LINE;
         xmlString += this.PACKAGE_END;
         console.log(xmlString);
         fs.writeFile(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml", xmlString, (err) => {
@@ -251,7 +252,7 @@ class CodingPanel {
             let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + folderType;
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: "Processing Metadata : folderType",
+                title: "Processing Metadata : " + folderType,
                 cancellable: true
             }, (progress, token) => {
                 token.onCancellationRequested(() => {
@@ -368,6 +369,7 @@ class CodingPanel {
         this.getMetadataTypes();
     }
     getMetadataTypes() {
+        console.log("getMetadataTypes invoked");
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: "Processing Metadata",
@@ -376,13 +378,13 @@ class CodingPanel {
             token.onCancellationRequested(() => {
                 console.log("User canceled the long running operation");
             });
-            console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+            console.log("vscode.workspace.workspaceFolders[0].uri.fsPath " + vscode.workspace.workspaceFolders[0].uri.fsPath);
             var p = new Promise(resolve => {
                 var foo = child.exec('sfdx force:mdapi:describemetadata --json', {
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
                 });
                 foo.stdout.on("data", (dataArg) => {
-                    //console.log('stdout: ' + dataArg);
+                    console.log('dataArg ' + dataArg);
                     let data = JSON.parse(dataArg);
                     let depArr = [];
                     let metadataObjectsArr = data.result.metadataObjects;

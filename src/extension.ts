@@ -70,6 +70,7 @@ class CodingPanel {
 	private  PACKAGE_END='</Package>';
 	private NEW_LINE ='\n';
 	private VERSION_NUM='45.0';
+	private CHAR_TAB='\t';
 
 	public static createOrShow(extensionPath: string) {
 		const column = vscode.window.activeTextEditor
@@ -252,17 +253,17 @@ class CodingPanel {
 				continue;
 			}
 
-			xmlString+=this.TYPES_START+this.NEW_LINE;
+			xmlString+=this.CHAR_TAB+this.TYPES_START+this.NEW_LINE;
 			
 			for(const component of components){
-				xmlString+=this.MEMBERS_START+component+this.MEMBERS_END+this.NEW_LINE;
+				xmlString+=this.CHAR_TAB+this.CHAR_TAB+this.MEMBERS_START+component+this.MEMBERS_END+this.NEW_LINE;
 			}
 
-			xmlString+=this.NAME_START+mType+this.NAME_END+this.NEW_LINE;
-			xmlString+=this.TYPES_END+this.NEW_LINE;
+			xmlString+=this.CHAR_TAB+this.CHAR_TAB+this.NAME_START+mType+this.NAME_END+this.NEW_LINE;
+			xmlString+=this.CHAR_TAB+this.TYPES_END+this.NEW_LINE;
 		}
 
-		xmlString+=this.VERSION_START+this.VERSION_NUM+this.VERSION_END+this.NEW_LINE;
+		xmlString+=this.CHAR_TAB+this.VERSION_START+this.VERSION_NUM+this.VERSION_END+this.NEW_LINE;
 		xmlString+=this.PACKAGE_END;
 		console.log(xmlString);
 
@@ -346,7 +347,7 @@ class CodingPanel {
 
 		vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: "Processing Metadata : folderType",
+			title: "Processing Metadata : "+folderType,
 			cancellable: true
 		}, (progress, token) => {
 			token.onCancellationRequested(() => {
@@ -473,14 +474,6 @@ class CodingPanel {
 					
 				});
 
-					
-				
-		
-				
-					
-				
-
-		
 		
 	}
 
@@ -509,6 +502,7 @@ class CodingPanel {
 
 	
 private getMetadataTypes(){
+	console.log("getMetadataTypes invoked");
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
 		title: "Processing Metadata",
@@ -518,14 +512,15 @@ private getMetadataTypes(){
 			console.log("User canceled the long running operation")
 		});
 
-		console.log(vscode.workspace.workspaceFolders[0].uri.fsPath);
+		console.log("vscode.workspace.workspaceFolders[0].uri.fsPath "+vscode.workspace.workspaceFolders[0].uri.fsPath);
 
 		var p = new Promise(resolve => {
 			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata --json',{
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 				});
 			foo.stdout.on("data",(dataArg : any)=> {
-				//console.log('stdout: ' + dataArg);
+				
+				console.log('dataArg '+dataArg);
 				let data = JSON.parse(dataArg);
 				let depArr=[];
 				let metadataObjectsArr = data.result.metadataObjects;
