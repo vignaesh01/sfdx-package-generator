@@ -306,13 +306,18 @@ class CodingPanel {
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
 					cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 					});
+
+					let bufferOutData='';
+
 				foo.stdout.on("data",(dataArg : any)=> {
 					console.log('stdout: ' + dataArg);
-					let data = JSON.parse(dataArg);
+					bufferOutData+=dataArg;
+					
+					/*let data = JSON.parse(dataArg);
 					let depArr=[];
 					let results = data.result;
 					this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
-					resolve();
+					resolve();*/
 				});
 		
 				foo.stderr.on("data",(data : any)=> {
@@ -326,7 +331,17 @@ class CodingPanel {
 					//vscode.window.showErrorMessage(data);
 					resolve();
 				});
-						
+				
+				foo.on('exit',(code,signal)=>{
+					console.log('exit code '+code);
+					console.log('bufferOutData '+bufferOutData);
+					
+					let data = JSON.parse(bufferOutData);
+					let depArr=[];
+					let results = data.result;
+					this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
+					resolve();
+				});
 					
 				});
 	
@@ -360,9 +375,53 @@ class CodingPanel {
 				let foo: child.ChildProcess = child.exec(sfdxCmd,{
 					cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 					});
+				
+				let bufferOutData='';
+
 				foo.stdout.on("data",(dataArg : any)=> {
 					console.log('stdout: ' + dataArg);
-					let data = JSON.parse(dataArg);
+					bufferOutData+=dataArg;
+
+					/*let data = JSON.parse(dataArg);
+					let folderNames=[];
+					let results = data.result;
+					
+					if(!results || results.length==0){
+						//no folders
+						this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
+						return;
+					}else if(!Array.isArray(results)){
+						//1 folder
+						folderNames.push(results.fullName);
+					}else{
+						//many folders
+						for(let i=0;i<results.length;i++){
+							folderNames.push(results[i].fullName);
+						}
+					}
+		
+				//get the components inside each folder
+				this.getComponentsInsideFolders(folderNames,mType,0,[]);
+				resolve();*/
+		
+				});
+		
+				foo.stderr.on("data",(data : any)=> {
+					console.log('stderr: ' + data);
+					vscode.window.showErrorMessage(data);
+					resolve();
+				});
+		
+				foo.stdin.on("data",(data : any)=> {
+					console.log('stdin: ' + data);
+					resolve();
+				});
+				
+				foo.on('exit',(code,signal)=>{
+					console.log('exit code '+code);
+					console.log('bufferOutData '+bufferOutData);
+					
+					let data = JSON.parse(bufferOutData);
 					let folderNames=[];
 					let results = data.result;
 					
@@ -383,20 +442,8 @@ class CodingPanel {
 				//get the components inside each folder
 				this.getComponentsInsideFolders(folderNames,mType,0,[]);
 				resolve();
-		
+
 				});
-		
-				foo.stderr.on("data",(data : any)=> {
-					console.log('stderr: ' + data);
-					vscode.window.showErrorMessage(data);
-					resolve();
-				});
-		
-				foo.stdin.on("data",(data : any)=> {
-					console.log('stdin: ' + data);
-					resolve();
-				});
-				
 				
 			});
 
@@ -431,9 +478,52 @@ class CodingPanel {
 						let foo: child.ChildProcess = child.exec(sfdxCmd,{
 							cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 							});
+
+						let bufferOutData='';
+
 						foo.stdout.on("data",(dataArg : any)=> {
 							console.log('stdout: ' + dataArg);
-							let data = JSON.parse(dataArg);
+							bufferOutData+=dataArg;
+
+							/*let data = JSON.parse(dataArg);
+							let depArr=[];
+							let results = data.result;
+			
+							if(results){
+								if(!Array.isArray(results)){
+									//1 folder
+									resultsArr.push(results);
+								}else{
+									//many folders
+									for(let i=0;i<results.length;i++){
+										resultsArr.push(results[i]);
+									}
+								}
+						}
+							
+							resolve();
+							console.log('After resolve getComponentsInsideFolders');
+							this.getComponentsInsideFolders(folderNames,mType,++index,resultsArr);*/
+						
+			
+						});
+				
+						foo.stderr.on("data",(data : any)=> {
+							console.log('stderr: ' + data);
+							vscode.window.showErrorMessage(data);
+							resolve();
+						});
+				
+						foo.stdin.on("data",(data : any)=> {
+							console.log('stdin: ' + data);
+							resolve();
+						});
+						
+						foo.on('exit',(code,signal)=>{
+							console.log('exit code '+code);
+							console.log('bufferOutData '+bufferOutData);
+
+							let data = JSON.parse(bufferOutData);
 							let depArr=[];
 							let results = data.result;
 			
@@ -452,21 +542,9 @@ class CodingPanel {
 							resolve();
 							console.log('After resolve getComponentsInsideFolders');
 							this.getComponentsInsideFolders(folderNames,mType,++index,resultsArr);
-						
-			
+
+
 						});
-				
-						foo.stderr.on("data",(data : any)=> {
-							console.log('stderr: ' + data);
-							vscode.window.showErrorMessage(data);
-							resolve();
-						});
-				
-						foo.stdin.on("data",(data : any)=> {
-							console.log('stdin: ' + data);
-							resolve();
-						});
-						
 						
 					});
 		
@@ -518,10 +596,12 @@ private getMetadataTypes(){
 			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata --json',{
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 				});
+			let bufferOutData='';
 			foo.stdout.on("data",(dataArg : any)=> {
 				
 				console.log('dataArg '+dataArg);
-				let data = JSON.parse(dataArg);
+				bufferOutData+=dataArg;
+				/*let data = JSON.parse(dataArg);
 				let depArr=[];
 				let metadataObjectsArr = data.result.metadataObjects;
 	
@@ -531,7 +611,7 @@ private getMetadataTypes(){
 					depArr.push(obj.xmlName);
 				}
 				this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr});
-				resolve();
+				resolve();*/
 			});
 	
 			foo.stderr.on("data",(data : any)=> {
@@ -543,6 +623,23 @@ private getMetadataTypes(){
 			foo.stdin.on("data",(data : any)=> {
 				console.log('stdin: ' + data);
 				resolve();
+			});
+
+			foo.on("exit", (code: number, signal: string) => {
+				console.log("exited with code "+code);
+				console.log("bufferOutData "+bufferOutData);
+				resolve();
+				let data = JSON.parse(bufferOutData);
+				let depArr=[];
+				let metadataObjectsArr = data.result.metadataObjects;
+	
+				for(let index=0;index<metadataObjectsArr.length;index++){
+					let obj=metadataObjectsArr[index];
+					console.log(obj.xmlName);
+					depArr.push(obj.xmlName);
+				}
+				this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr});
+			
 			});
 			console.log(typeof foo.on); 
 				
