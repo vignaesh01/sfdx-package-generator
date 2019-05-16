@@ -177,7 +177,7 @@ class CodingPanel {
     }
     generatePackageXML(mpPackage) {
         console.log('Invoked generatePackageXML');
-        //for parent metadata types which have empty children, fetch the children and rebuild the amp entries.
+        //for parent metadata types which have empty children, fetch the children and rebuild the map entries.
         if (!mpPackage || mpPackage.size == 0) {
             console.log('Invoked generatePackageXML' + mpPackage);
             return mpPackage;
@@ -449,7 +449,7 @@ class CodingPanel {
             fs.readFile(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml", function (err, data) {
                 if (err) {
                     console.error(err);
-                    reject(err);
+                    resolve(mpExistingPackageXML);
                 }
                 parser.parseString(data, function (err, result) {
                     if (err) {
