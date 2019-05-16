@@ -4,6 +4,7 @@ const path = require("path");
 const vscode = require("vscode");
 const child = require("child_process");
 var fs = require("fs");
+var xml2js = require('xml2js');
 function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata', () => {
         CodingPanel.createOrShow(context.extensionPath);
@@ -56,6 +57,7 @@ class CodingPanel {
         this.NEW_LINE = '\n';
         this.VERSION_NUM = '45.0';
         this.CHAR_TAB = '\t';
+        this.LOADING = '*loading..';
         this._panel = panel;
         this._extensionPath = extensionPath;
         // Set the webview's initial html content
@@ -87,7 +89,7 @@ class CodingPanel {
                     return;
                 case 'getMetadataTypes':
                     console.log('onDidReceiveMessage getMetadataTypes');
-                    this.getMetadataTypes();
+                    this.getMetadataTypes({});
                     return;
             }
         }, null, this._disposables);
@@ -129,6 +131,10 @@ class CodingPanel {
         for (let i = 0; i < selectedNodes.length; i++) {
             let node = selectedNodes[i];
             let parent = node.parent;
+            //do not add loading child node to final map
+            if (node.text == this.LOADING) {
+                continue;
+            }
             if (parent == '#') {
                 //parent node
                 if (!mpPackage.has(node.text)) {
@@ -429,9 +435,52 @@ class CodingPanel {
     _update() {
         this._panel.title = 'Choose Metadata Components';
         this._panel.webview.html = this._getHtmlForWebview();
-        this.getMetadataTypes();
+        this.readExistingPackageXML().then(mpExistingPackageXML => {
+            this.getMetadataTypes(mpExistingPackageXML);
+        }).catch(err => {
+            console.log(err);
+        });
     }
-    getMetadataTypes() {
+    readExistingPackageXML() {
+        console.log('Read existing packge.xml');
+        let mpExistingPackageXML = {};
+        let parser = new xml2js.Parser();
+        return new Promise((resolve, reject) => {
+            fs.readFile(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml", function (err, data) {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                }
+                parser.parseString(data, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        resolve(mpExistingPackageXML);
+                        //return;
+                    }
+                    console.log('Existing package.xml');
+                    console.log(JSON.stringify(result));
+                    ///mpExistingPackageXML=this.putExistingPackageXMLInMap(result);
+                    if (!result || !result.Package || !result.Package.types) {
+                        resolve(mpExistingPackageXML);
+                    }
+                    let types = result.Package.types;
+                    for (let i = 0; i < types.length; i++) {
+                        let type = types[i];
+                        let name = type.name[0];
+                        let members = type.members;
+                        //for setting undetermined state
+                        if (members && !members.includes("*")) {
+                            members.push("*loading..");
+                        }
+                        mpExistingPackageXML[name] = members;
+                    }
+                    console.log(mpExistingPackageXML);
+                    resolve(mpExistingPackageXML);
+                });
+            });
+        });
+    }
+    getMetadataTypes(mpExistingPackageXML) {
         console.log("getMetadataTypes invoked");
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
@@ -483,7 +532,8 @@ class CodingPanel {
                         console.log(obj.xmlName);
                         depArr.push(obj.xmlName);
                     }
-                    this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr });
+                    this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr,
+                        'mpExistingPackageXML': mpExistingPackageXML });
                 });
                 console.log(typeof foo.on);
             });

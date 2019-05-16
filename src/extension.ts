@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import * as child from 'child_process';
 var fs = require("fs");
-
+var xml2js = require('xml2js');
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
@@ -71,6 +71,7 @@ class CodingPanel {
 	private NEW_LINE ='\n';
 	private VERSION_NUM='45.0';
 	private CHAR_TAB='\t';
+	private LOADING='*loading..';
 
 	public static createOrShow(extensionPath: string) {
 		const column = vscode.window.activeTextEditor
@@ -144,7 +145,7 @@ class CodingPanel {
 
 					case 'getMetadataTypes':
 						console.log('onDidReceiveMessage getMetadataTypes');
-						this.getMetadataTypes();
+						this.getMetadataTypes({});
 						return;
 				}
 			},
@@ -175,6 +176,10 @@ class CodingPanel {
 			let node=selectedNodes[i];
 			let parent=node.parent;
 
+			//do not add loading child node to final map
+			if(node.text==this.LOADING){
+				continue;
+			}
 		
 
 			if(parent=='#'){
@@ -574,12 +579,71 @@ class CodingPanel {
 
 		this._panel.title = 'Choose Metadata Components';
 		this._panel.webview.html = this._getHtmlForWebview();
-		this.getMetadataTypes();	
+
+		this.readExistingPackageXML().then(mpExistingPackageXML=>{
+			this.getMetadataTypes(mpExistingPackageXML);
+		}).catch(err=>{
+			console.log(err);
+		});
+	
 
 	}
 
 	
-private getMetadataTypes(){
+
+private readExistingPackageXML(){
+	console.log('Read existing packge.xml');
+	let mpExistingPackageXML={};
+	let parser = new xml2js.Parser();
+	
+	return new Promise((resolve,reject)=>{
+		fs.readFile(vscode.workspace.workspaceFolders[0].uri.fsPath+"/manifest/package.xml", function(err, data) {
+			if(err){
+				console.error(err);
+				reject(err);
+			}
+				parser.parseString(data, function (err, result) {
+					if(err){
+						console.error(err);
+						resolve(mpExistingPackageXML);
+						//return;
+					}
+					console.log('Existing package.xml');	
+					console.log(JSON.stringify(result));
+					///mpExistingPackageXML=this.putExistingPackageXMLInMap(result);
+					if(!result || !result.Package || !result.Package.types){
+						resolve(mpExistingPackageXML);
+					}
+				
+					let types=result.Package.types;
+					for(let i=0;i<types.length;i++){
+						let type=types[i];
+				
+						let name=type.name[0];
+						let members=type.members;
+
+						//for setting undetermined state
+						if(members && !members.includes("*")){
+							members.push("*loading..");
+						}
+						mpExistingPackageXML[name]=members;
+				
+					}
+					
+						console.log(mpExistingPackageXML);
+				
+					resolve(mpExistingPackageXML);
+				});
+		});
+
+	});
+
+		
+
+
+}	
+
+private getMetadataTypes(mpExistingPackageXML){
 	console.log("getMetadataTypes invoked");
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
@@ -638,7 +702,8 @@ private getMetadataTypes(){
 					console.log(obj.xmlName);
 					depArr.push(obj.xmlName);
 				}
-				this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr});
+				this._panel.webview.postMessage({ command: 'metadataObjects', metadataObjects: metadataObjectsArr,
+																					'mpExistingPackageXML' :mpExistingPackageXML});
 			
 			});
 			console.log(typeof foo.on); 
