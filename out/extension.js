@@ -5,6 +5,7 @@ const vscode = require("vscode");
 const child = require("child_process");
 var fs = require("fs");
 var xml2js = require('xml2js');
+var clipboardy = require('clipboardy');
 function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata', () => {
         CodingPanel.createOrShow(context.extensionPath);
@@ -85,11 +86,15 @@ class CodingPanel {
                     return;
                 case 'buildPackageXML':
                     console.log('onDidReceiveMessage buildPackageXML');
-                    this.buildPackageXML(message.selectedNodes);
+                    this.buildPackageXML(message.selectedNodes, false);
                     return;
                 case 'getMetadataTypes':
                     console.log('onDidReceiveMessage getMetadataTypes');
                     this.getMetadataTypes({});
+                    return;
+                case 'copyToClipboard':
+                    console.log('onDidReceiveMessage copyToClipboard');
+                    this.buildPackageXML(message.selectedNodes, true);
                     return;
             }
         }, null, this._disposables);
@@ -116,14 +121,14 @@ class CodingPanel {
     static revive(panel, extensionPath) {
         CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
     }
-    buildPackageXML(selectedNodes) {
+    buildPackageXML(selectedNodes, isCopyToClipboard) {
         console.log('Invoked buildPackageXML');
         if (!selectedNodes || selectedNodes.length == 0) {
             vscode.window.showErrorMessage("Please select components for package.xml");
             return;
         }
         let mpPackage = this.buildPackageMap(selectedNodes);
-        this.generatePackageXML(mpPackage);
+        this.generatePackageXML(mpPackage, isCopyToClipboard);
     }
     buildPackageMap(selectedNodes) {
         console.log('Invoked buildPackageMap');
@@ -175,7 +180,7 @@ class CodingPanel {
         }
         return mpPackage;
     }
-    generatePackageXML(mpPackage) {
+    generatePackageXML(mpPackage, isCopyToClipboard) {
         console.log('Invoked generatePackageXML');
         //for parent metadata types which have empty children, fetch the children and rebuild the map entries.
         if (!mpPackage || mpPackage.size == 0) {
@@ -184,11 +189,23 @@ class CodingPanel {
         }
         let xmlString = '';
         xmlString += this.PACKAGE_START;
-        for (const [mType, components] of mpPackage) {
+        let mpKeys = [];
+        for (let key of mpPackage.keys()) {
+            mpKeys.push(key);
+        }
+        //	mpKeys=mpKeys.sort();
+        console.log(mpKeys);
+        let mpSortedKeys = mpKeys.sort();
+        console.log(mpSortedKeys);
+        //	for (const [mType, components] of mpPackage) {
+        for (let mType of mpKeys) {
+            let components = mpPackage.get(mType);
             //remove metadata types with empty array values
             if (!components || components.length == 0) {
                 continue;
             }
+            components = components.sort();
+            //console.log(components);
             xmlString += this.CHAR_TAB + this.TYPES_START + this.NEW_LINE;
             for (const component of components) {
                 xmlString += this.CHAR_TAB + this.CHAR_TAB + this.MEMBERS_START + component + this.MEMBERS_END + this.NEW_LINE;
@@ -199,17 +216,25 @@ class CodingPanel {
         xmlString += this.CHAR_TAB + this.VERSION_START + this.VERSION_NUM + this.VERSION_END + this.NEW_LINE;
         xmlString += this.PACKAGE_END;
         console.log(xmlString);
-        fs.writeFile(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml", xmlString, (err) => {
-            if (err) {
-                console.log(err);
-                vscode.window.showErrorMessage(err);
-            }
-            console.log("Successfully Written to File.");
-            vscode.workspace.openTextDocument(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml").then(data => {
-                console.log('Opened ' + data.fileName);
-                vscode.window.showTextDocument(data);
+        if (isCopyToClipboard) {
+            clipboardy.write(xmlString).then((result) => {
+                console.log(result);
+                vscode.window.showInformationMessage("Contents Copied to Clipboard successfully!!");
             });
-        });
+        }
+        else {
+            fs.writeFile(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml", xmlString, (err) => {
+                if (err) {
+                    console.log(err);
+                    vscode.window.showErrorMessage(err);
+                }
+                console.log("Successfully Written to File.");
+                vscode.workspace.openTextDocument(vscode.workspace.workspaceFolders[0].uri.fsPath + "/manifest/package.xml").then(data => {
+                    console.log('Opened ' + data.fileName);
+                    vscode.window.showTextDocument(data);
+                });
+            });
+        }
     }
     fetchChildren(metadataType) {
         console.log('Invoked fetchChildren');
@@ -573,6 +598,7 @@ class CodingPanel {
 						<td><h3>Choose Metadata Components for Package.xml</h3></td>
 						<td>
 						<button id="buildBtn">Update Package.xml</button>&nbsp;
+						<button id="copyBtn">Copy to Clipboard</button>&nbsp;
 						<button id="clearAllBtn">Clear All</button>
 						</td>
 						</tr>

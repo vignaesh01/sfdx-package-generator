@@ -40,6 +40,7 @@
 		"postinstall": "node ./node_modules/vscode/bin/install"
 	},
 	"dependencies": {
+		"clipboardy": "^2.0.0",
 		"xml2js": "^0.4.19"
 	},
 	"devDependencies": {

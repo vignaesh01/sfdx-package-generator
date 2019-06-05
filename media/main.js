@@ -195,6 +195,18 @@ $('#jstree').on("select_node.jstree", function(e, data) {
    
   });
 
+  
+  $('#copyBtn').on('click', function () {
+    var selectedNodes= $('#jstree').jstree(true).get_selected(true)
+     console.log(JSON.stringify(selectedNodes));
+     vscode.postMessage({
+        command: 'copyToClipboard',
+        selectedNodes : selectedNodes
+    });
+   
+  });
+
+
   $('#clearAllBtn').on('click', function () {
       console.log('Clear All invoked');
       $('#jstree').jstree(true).settings.core.data = [];
