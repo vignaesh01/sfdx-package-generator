@@ -31,7 +31,7 @@ window.addEventListener('message', event => {
                         
                         if(childName==='*'){
                             isWildChar=true;
-                            childArr.push({ "text" : LOADING});
+                            childArr.push({"id" : xmlName+'.'+"loading", "text" : LOADING});
                             continue;
                         }
 
@@ -58,7 +58,7 @@ window.addEventListener('message', event => {
                 }else{
                     jsTreeData.push({ "id" : metadataObjects[i].xmlName, "text" : metadataObjects[i].xmlName, 
                     isRefreshedFromServer : false,
-                    children : [{ "text" : LOADING}], inFolder : metadataObjects[i].inFolder ,isParent  : true
+                    children : [{ "id" : xmlName+'.'+"loading", "text" : LOADING}], inFolder : metadataObjects[i].inFolder ,isParent  : true
                      , a_attr : {href : "javaScript:void(0);"}}
                    );
                 }
@@ -217,6 +217,29 @@ $('#jstree').on("select_node.jstree", function(e, data) {
     });
   
   });
+
+  $('#selectAllBtn').on('click', function () {
+    console.log('Select All invoked');
+    
+    let tData =$('#jstree').jstree(true).settings.core.data;
+    let parNodeArr=[];        
+    for(let i=0;i<tData.length;i++){
+        if(!tData[i].inFolder){
+            parNodeArr.push(tData[i].id);
+        }
+        
+    }
+    parNodeArr.sort();
+    vscode.postMessage({
+        command: 'selectAll',
+        selectedMetadata : parNodeArr
+    });
+
+    process=false;
+    $('#jstree').jstree('select_node', parNodeArr,true,true);
+    process=true;
+
+});
 
 });
 

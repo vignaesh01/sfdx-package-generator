@@ -20,4 +20,5 @@ For more details refer [Org Development Model with VS Code] (https://forcedotcom
 - In Choose Metadata Components for Package.xml page, select the Metadata you need and click on **Update Package.xml** button.
 - Package.xml file opens up with the selected metadata components.
 - Open the command palette (press Ctrl+Shift+P on Windows or Linux, or Cmd+Shift+P on macOS) and run **SFDX: Retrieve Source in Manifest from Org**
+- **Select All** button selects all the metadata components expect Reports, Dashboards, Email Templates and Documents.
 - If you don't want to modify the existing package.xml file & only want the generated xml content, click on **Copy to Clipboard** button. This copies the formatted package.xml contents to clipboard which can be pasted somewhere else.

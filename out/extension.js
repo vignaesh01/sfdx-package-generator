@@ -59,6 +59,7 @@ class CodingPanel {
         this.VERSION_NUM = '46.0';
         this.CHAR_TAB = '\t';
         this.LOADING = '*loading..';
+        this.infoMsg = 'All metadata selected except ';
         this._panel = panel;
         this._extensionPath = extensionPath;
         // Set the webview's initial html content
@@ -95,6 +96,11 @@ class CodingPanel {
                 case 'copyToClipboard':
                     console.log('onDidReceiveMessage copyToClipboard');
                     this.buildPackageXML(message.selectedNodes, true);
+                    return;
+                case 'selectAll':
+                    console.log('onDidReceiveMessage selectAll');
+                    let selectedMetadata = message.selectedMetadata;
+                    this.fetchAllChildren(selectedMetadata, 0);
                     return;
             }
         }, null, this._disposables);
@@ -369,6 +375,67 @@ class CodingPanel {
             });
         }
     }
+    fetchAllChildren(selectedMetadata, index) {
+        console.log('Invoked fetchAllChildren');
+        if (!selectedMetadata || selectedMetadata.length == 0) {
+            return;
+        }
+        if (index == selectedMetadata.length) { //end condition
+            let mpKeys = [];
+            for (let key in this.reportFolderMap) {
+                mpKeys.push(key);
+            }
+            vscode.window.showInformationMessage(this.infoMsg + mpKeys.join());
+            return;
+        }
+        let mType = selectedMetadata[index];
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Processing Metadata : " + mType,
+            cancellable: true
+        }, (progress, token) => {
+            token.onCancellationRequested(() => {
+                console.log("User canceled the long running operation");
+            });
+            var p = new Promise(resolve => {
+                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + mType;
+                let foo = child.exec(sfdxCmd, {
+                    cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+                });
+                let bufferOutData = '';
+                foo.stdout.on("data", (dataArg) => {
+                    console.log('stdout: ' + dataArg);
+                    bufferOutData += dataArg;
+                    /*let data = JSON.parse(dataArg);
+                    let depArr=[];
+                    let results = data.result;
+                    this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
+                    resolve();*/
+                });
+                foo.stderr.on("data", (data) => {
+                    console.log('stderr: ' + data);
+                    vscode.window.showErrorMessage(data);
+                    resolve();
+                });
+                foo.stdin.on("data", (data) => {
+                    console.log('stdin: ' + data);
+                    //vscode.window.showErrorMessage(data);
+                    resolve();
+                });
+                foo.on('exit', (code, signal) => {
+                    console.log('exit code ' + code);
+                    console.log('bufferOutData ' + bufferOutData);
+                    let data = JSON.parse(bufferOutData);
+                    let depArr = [];
+                    let results = data.result;
+                    this._panel.webview.postMessage({ command: 'listmetadata', results: results, metadataType: mType });
+                    resolve();
+                    this.fetchAllChildren(selectedMetadata, ++index); //recurse through other metadata
+                });
+            });
+            return p;
+        });
+    }
     getComponentsInsideFolders(folderNames, mType, index, resultsArr) {
         if (index == folderNames.length) {
             this._panel.webview.postMessage({ command: 'listmetadata', results: resultsArr, metadataType: mType });
@@ -599,6 +666,7 @@ class CodingPanel {
 						<td>
 						<button id="buildBtn">Update Package.xml</button>&nbsp;
 						<button id="copyBtn">Copy to Clipboard</button>&nbsp;
+						<button id="selectAllBtn">Select All</button>&nbsp;
 						<button id="clearAllBtn">Clear All</button>
 						</td>
 						</tr>
