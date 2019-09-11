@@ -348,7 +348,8 @@ class CodingPanel {
 				var p = new Promise(resolve => {
 					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
-					cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+						maxBuffer: 1024 * 1024 * 6,
+						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 					});
 
 					let bufferOutData='';
@@ -417,6 +418,7 @@ class CodingPanel {
 
 			var p = new Promise(resolve => {
 				let foo: child.ChildProcess = child.exec(sfdxCmd,{
+					maxBuffer: 1024 * 1024 * 6,
 					cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 					});
 				
@@ -535,7 +537,8 @@ class CodingPanel {
 				var p = new Promise(resolve => {
 					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
-					cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+						maxBuffer: 1024 * 1024 * 6,
+						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 					});
 
 					let bufferOutData='';
@@ -603,8 +606,9 @@ class CodingPanel {
 					var p = new Promise(resolve => {
 						let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType+" --folder "+folderNames[index];
 						let foo: child.ChildProcess = child.exec(sfdxCmd,{
+							maxBuffer: 1024 * 1024 * 6,
 							cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
-							});
+						});
 
 						let bufferOutData='';
 
@@ -780,8 +784,9 @@ private getMetadataTypes(mpExistingPackageXML){
 
 		var p = new Promise(resolve => {
 			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata --json',{
+				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
-				});
+			});
 			let bufferOutData='';
 			foo.stdout.on("data",(dataArg : any)=> {
 				
