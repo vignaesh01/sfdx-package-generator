@@ -15,11 +15,13 @@ window.addEventListener('message', event => {
         case 'metadataObjects':
             console.log("Inside metadataObjects");
             let metadataObjects=message.metadataObjects;
+            metadataObjects=processChildXMLNames(metadataObjects);//Added for #18
             let mpExistingPackageXML=message.mpExistingPackageXML;
             console.log(mpExistingPackageXML);
             let jsTreeData=[];
             for(let i=0;i<metadataObjects.length;i++){
                 let xmlName=metadataObjects[i].xmlName;
+                let isChildXMLName=(metadataObjects[i].isChildXMLName)?metadataObjects[i].isChildXMLName:false;//Added for #18
                 if(mpExistingPackageXML[xmlName]){
                     //metadata already selected in existing package.xml
                     let members=mpExistingPackageXML[xmlName];
@@ -45,9 +47,10 @@ window.addEventListener('message', event => {
                           childArr.push(child);
                           
                     }
-                   
+                   //Modified for #18
                     parNode={ "id" : xmlName, "text" : xmlName, 
                     children : childArr, inFolder : metadataObjects[i].inFolder ,
+                    isChildXMLName:isChildXMLName,
                     isRefreshedFromServer : false,
                     isParent  : true, state : {
                       selected  : isWildChar  // is the parent node selected
@@ -56,8 +59,9 @@ window.addEventListener('message', event => {
                     jsTreeData.push(parNode);
 
                 }else{
+                    //Modified for #18
                     jsTreeData.push({ "id" : metadataObjects[i].xmlName, "text" : metadataObjects[i].xmlName, 
-                    isRefreshedFromServer : false,
+                    isRefreshedFromServer : false,isChildXMLName:isChildXMLName,
                     children : [{ "id" : xmlName+'.'+"loading", "text" : LOADING}], inFolder : metadataObjects[i].inFolder ,isParent  : true
                      , a_attr : {href : "javaScript:void(0);"}}
                    );
@@ -121,7 +125,26 @@ window.addEventListener('message', event => {
     }
 });
 
+//Added for #18
+function processChildXMLNames(metadataObjects){
+    let combinedArr=[];
+    for(let i=0;i<metadataObjects.length;i++){
+        combinedArr.push(metadataObjects[i]);
 
+        if(metadataObjects[i].childXmlNames){
+            metadataObjects[i].childXmlNames.forEach(childXmlName => {
+                let childObj={};
+                childObj.xmlName=childXmlName;
+                childObj.inFolder=false;
+                childObj.isChildXMLName=true;
+                combinedArr.push(childObj);
+            });
+
+        }
+    }
+
+    return combinedArr;
+}
 
 $(function () {
 
@@ -222,17 +245,30 @@ $('#jstree').on("select_node.jstree", function(e, data) {
     console.log('Select All invoked');
     
     let tData =$('#jstree').jstree(true).settings.core.data;
-    let parNodeArr=[];        
+    let parNodeArr=[];
+    let skippedMetadataTypes=[];        
     for(let i=0;i<tData.length;i++){
-        if(!tData[i].inFolder){
+        if(!tData[i].inFolder && !tData[i].isChildXMLName){//Modified for #18
             parNodeArr.push(tData[i].id);
+        }else{
+            skippedMetadataTypes.push(tData[i].id);
         }
         
     }
+
+    //Added for #18 - starts
+    if(skippedMetadataTypes && skippedMetadataTypes.length>0){
+        console.log("skippedMetadataTypes");
+        console.log(skippedMetadataTypes);
+        skippedMetadataTypes.sort();
+        //alert("The following Metadata Types will be skipped "+skippedMetadataTypes.join());
+    }
+    //Added for #18 - ends
     parNodeArr.sort();
     vscode.postMessage({
         command: 'selectAll',
-        selectedMetadata : parNodeArr
+        selectedMetadata : parNodeArr,
+        skippedMetadataTypes : skippedMetadataTypes//Added for #18
     });
 
     process=false;

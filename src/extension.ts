@@ -35,7 +35,7 @@ class CodingPanel {
 		EmailTemplate :'EmailFolder',
 		Report :'ReportFolder'
 	};
-
+	//Modified for #18
 	//metadata types that accept * reg exp
 	private regExpArr=['AccountRelationshipShareRule','ActionLinkGroupTemplate','ApexClass','ApexComponent',
 'ApexPage','ApexTrigger','AppMenu','ApprovalProcess','ArticleType','AssignmentRules','Audience','AuthProvider',
@@ -55,7 +55,30 @@ class CodingPanel {
 'Scontrol','ServiceChannel','ServicePresenceStatus','SharingRules','SharingSet','SiteDotCom','Skill','StandardValueSetTranslation',
 'StaticResource','SynonymDictionary','Territory','Territory2','Territory2Model','Territory2Rule','Territory2Type','TopicsForObjects',
 'TransactionSecurityPolicy','Translations','WaveApplication','WaveDashboard','WaveDataflow','WaveDataset','WaveLens','WaveTemplateBundle',
-'WaveXmd','Workflow'];
+'WaveXmd','Workflow',
+'ActionPlanTemplate',
+'AnimationRule',
+'ChannelLayout',
+'ApexTestSuite',
+'AppointmentSchedulingPolicy',
+'CampaignInfluenceModel',
+'ChatterExtension',
+'CspTrustedSite',
+'CompactLayout',
+'ExperienceBundle',
+'LightningMessageChannel',
+'MyDomainDiscoverableLogin',
+'NavigationMenu',
+'OauthCustomScope',
+'PaymentGatewayProvider',
+'PlatformEventChannel',
+'PlatformEventChannelMember',
+'Prompt',
+'RedirectWhitelistUrl',
+'Settings',
+'TimeSheetTemplate',
+'WaveRecipe',
+'WorkSkillRouting'];
 
 	private  PACKAGE_START='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
 														'<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
@@ -70,7 +93,7 @@ class CodingPanel {
 	private  VERSION_END='</version>';
 	private  PACKAGE_END='</Package>';
 	private NEW_LINE ='\n';
-	private VERSION_NUM='47.0';
+	private VERSION_NUM='48.0';
 	private CHAR_TAB='\t';
 	private LOADING='*loading..';
 	private infoMsg='All metadata selected except ';
@@ -158,7 +181,8 @@ class CodingPanel {
 					case 'selectAll':
 							console.log('onDidReceiveMessage selectAll');
 							let selectedMetadata = message.selectedMetadata;
-							this.fetchAllChildren(selectedMetadata,0);
+							let skippedMetadataTypes=message.skippedMetadataTypes;//Added for #18
+							this.fetchAllChildren(selectedMetadata,skippedMetadataTypes,0);
 							return;
 
 				}
@@ -501,7 +525,7 @@ class CodingPanel {
 
 	} 
 
-	public fetchAllChildren(selectedMetadata,index){
+	public fetchAllChildren(selectedMetadata,skippedMetadataTypes,index){
 		
 			console.log('Invoked fetchAllChildren');
 			if(!selectedMetadata || selectedMetadata.length==0){
@@ -513,7 +537,7 @@ class CodingPanel {
 				for(let key in this.reportFolderMap){
 					mpKeys.push(key);
 				}
-				vscode.window.showInformationMessage(this.infoMsg+mpKeys.join());
+				vscode.window.showInformationMessage(this.infoMsg+skippedMetadataTypes.join());//Modified for #18
 				return;
 
 			}
@@ -575,7 +599,7 @@ class CodingPanel {
 					let results = data.result;
 					this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
 					resolve();
-					this.fetchAllChildren(selectedMetadata,++index);//recurse through other metadata
+					this.fetchAllChildren(selectedMetadata,skippedMetadataTypes,++index);//recurse through other metadata
 				});
 					
 				});
