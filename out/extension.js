@@ -127,6 +127,28 @@ class CodingPanel {
                     let skippedMetadataTypes = message.skippedMetadataTypes; //Added for #18
                     this.fetchAllChildren(selectedMetadata, skippedMetadataTypes, 0);
                     return;
+                //Added for UI Changes - starts
+                case 'INIT_LOAD_REQUEST':
+                    console.log('onDidReceiveMessage INIT_LOAD_REQUEST');
+                    this.handleInitLoadRequest();
+                    return;
+                case 'FETCH_CHILDREN_REQUEST':
+                    console.log('onDidReceiveMessage FETCH_CHILDREN');
+                    this.fetchChildren(message.metadataType);
+                    return;
+                case 'UPDATE_PACKAGE_XML':
+                    console.log('onDidReceiveMessage UPDATE_PACKAGE_XML');
+                    this.handleUpdatePackageXml(message.metadataTypes);
+                    return;
+                case 'COPY_TO_CLIPBOARD':
+                    console.log('onDidReceiveMessage COPY_TO_CLIPBOARD');
+                    this.handleCopyToClipboard(message.metadataTypes);
+                    return;
+                case 'OPEN_URL':
+                    console.log('onDidReceiveMessage OPEN_URL');
+                    this.openUrl(message.url);
+                    return;
+                //Added for Ui Changes - ends
             }
         }, null, this._disposables);
     }
@@ -144,8 +166,6 @@ class CodingPanel {
             // Enable javascript in the webview
             enableScripts: true,
             retainContextWhenHidden: true,
-            // And restrict the webview to only loading content from our extension's `media` directory.
-            localResourceRoots: [vscode.Uri.file(path.join(extensionPath, 'media'))]
         });
         CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
     }
@@ -270,7 +290,10 @@ class CodingPanel {
     fetchChildren(metadataType) {
         console.log('Invoked fetchChildren');
         let mType = metadataType.id;
-        let node = metadataType.original;
+        //Modified for UI Changes - starts
+        //let node = metadataType.original;
+        let node = metadataType;
+        //Modified for UI Changes - ends
         console.log('Invoked fetchChildren ' + JSON.stringify(node));
         if (!node.inFolder) {
             vscode.window.withProgress({
@@ -556,12 +579,71 @@ class CodingPanel {
     _update() {
         this._panel.title = 'Choose Metadata Components';
         this._panel.webview.html = this._getHtmlForWebview();
+        //Commented for UI Changes - starts
+        /*this.readExistingPackageXML().then(mpExistingPackageXML=>{
+            this.getMetadataTypes(mpExistingPackageXML);
+        }).catch(err=>{
+            console.log(err);
+        });*/
+        //Commented for Ui Changes - ends
+    }
+    //Added for UI Changes - starts
+    handleInitLoadRequest() {
         this.readExistingPackageXML().then(mpExistingPackageXML => {
             this.getMetadataTypes(mpExistingPackageXML);
         }).catch(err => {
             console.log(err);
         });
     }
+    handleUpdatePackageXml(metadataTypes) {
+        const mpPackage = this.buildSelectedMetadataMap(metadataTypes);
+        if (mpPackage.size == 0) {
+            vscode.window.showErrorMessage("Please select components for package.xml");
+            return;
+        }
+        this.generatePackageXML(mpPackage, false);
+    }
+    handleCopyToClipboard(metadataTypes) {
+        const mpPackage = this.buildSelectedMetadataMap(metadataTypes);
+        if (mpPackage.size == 0) {
+            vscode.window.showErrorMessage("Please select components for package.xml");
+            return;
+        }
+        this.generatePackageXML(mpPackage, true);
+    }
+    openUrl(url) {
+        vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(url));
+    }
+    buildSelectedMetadataMap(metadataTypes) {
+        const mpPackage = new Map();
+        if (!metadataTypes || metadataTypes.length == 0) {
+            return mpPackage;
+        }
+        metadataTypes.forEach(metadataType => {
+            if (metadataType.isSelected) {
+                //Add to Map
+                if (this.regExpArr.includes(metadataType.id)) {
+                    //accepts *
+                    mpPackage.set(metadataType.id, ['*']);
+                }
+                else {
+                    const childrenArr = metadataType.children.map(child => child.text);
+                    mpPackage.set(metadataType.id, childrenArr);
+                }
+            }
+            else if (metadataType.isIndeterminate) {
+                const childrenArr = [];
+                metadataType.children.forEach(child => {
+                    if (child.isSelected) {
+                        childrenArr.push(child.text);
+                    }
+                });
+                mpPackage.set(metadataType.id, childrenArr);
+            }
+        });
+        return mpPackage;
+    }
+    //Added for UI Changes - ends
     readExistingPackageXML() {
         console.log('Read existing packge.xml');
         let mpExistingPackageXML = {};
@@ -589,10 +671,12 @@ class CodingPanel {
                         let type = types[i];
                         let name = type.name[0];
                         let members = type.members;
+                        //Commented for UI Changes - starts
                         //for setting undetermined state
-                        if (members && !members.includes("*")) {
+                        /*if(members && !members.includes("*")){
                             members.push("*loading..");
-                        }
+                        }*/
+                        //Commented for UI Changes - ends
                         mpExistingPackageXML[name] = members;
                     }
                     console.log(mpExistingPackageXML);
@@ -663,10 +747,41 @@ class CodingPanel {
         });
     }
     _getHtmlForWebview() {
+        //Added for UI Changes - starts
+        const manifest = require(path.join(this._extensionPath, 'client', 'build', 'asset-manifest.json'));
+        const entrypoints = manifest['entrypoints'];
+        const scriptEntryPoints = [];
+        const styleEntryPoints = [];
+        entrypoints.forEach(entrypoint => {
+            if (entrypoint.endsWith('.js')) {
+                scriptEntryPoints.push(entrypoint);
+            }
+            else {
+                styleEntryPoints.push(entrypoint);
+            }
+        });
+        const scriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[0]));
+        const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const runtimeScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[1]));
+        const runtimeScriptUri = runtimeScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const staticScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[2]));
+        const staticScriptUri = staticScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const stylePathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', styleEntryPoints[0]));
+        const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+        console.log(`scriptUri ${scriptUri}`);
+        console.log(`styleUri ${styleUri}`);
+        //Added for UI Changes - ends
+        //Commented for UI Changes - starts
+        /*
         // Local path to main script run in the webview
-        const scriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'media', 'main.js'));
+        const scriptPathOnDisk = vscode.Uri.file(
+            path.join(this._extensionPath, 'media', 'main.js')
+        );
+
         // And the uri we use to load this script in the webview
         const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        */
+        //Commented for UI Changes - ends
         // Use a nonce to whitelist which scripts can be run
         const nonce = getNonce();
         return `<!DOCTYPE html>
@@ -679,18 +794,30 @@ class CodingPanel {
                 and only allow scripts that have a specific nonce.
                 -->
                 <!--<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src vscode-resource: https:; script-src 'nonce-${nonce}';">-->
+				<!--Commented for UI Changes -->
+				<!--
 				<meta
 				http-equiv="Content-Security-Policy"
 				content="default-src 'none'; img-src vscode-resource: https:; script-src vscode-resource: https:; style-src vscode-resource: https:;"
-			  />
+			  	/>
+			   	-->
+			 <!-- Added for UI Changes--> 
+			  <meta http-equiv="Content-Security-Policy" content="default-src *; 
+			  connect-src vscode-resource: https:;
+			  img-src vscode-resource: https:; style-src 'unsafe-inline' vscode-resource: https:; 
+			  script-src 'self' 'unsafe-inline' 'unsafe-eval' vscode-resource: https:">
+
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
 				
-                <title>Add Components</title>
-            </head>
+				<title>Add Components</title>
+				<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    			<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+				<link rel="stylesheet" type="text/css" href="${styleUri}"><!--Added for Ui Changes -->
+            	</head>
 						<body>
-						
-						<table border="0" width="100%">
+					<!-- Commented for UI Changes - starts -->
+					<!--	<table border="0" width="100%">
 						<tr>
 						<td><h3>Choose Metadata Components for Package.xml</h3></td>
 						<td>
@@ -704,12 +831,23 @@ class CodingPanel {
 						<hr>
 				<div id="jstree">
 				
-			  </div>
-			  
-			
+			  </div> 
+
 			  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
 			  <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+			  -->
+
+			  <!-- Commented for UI Changes - ends -->
+			  <!-- Added for UI Changes - starts -->
+			  <noscript>You need to enable JavaScript to run this app.</noscript>
+			  <div id="root"></div>
+			  <script>
+			  window.acquireVsCodeApi = acquireVsCodeApi;
+			  </script>
 			  <script  src="${scriptUri}"></script>
+			  <script  src="${runtimeScriptUri}"></script>
+			  <script  src="${staticScriptUri}"></script>
+			  <!-- Added for UI Changes - ends -->
             </body>
             </html>`;
     }
