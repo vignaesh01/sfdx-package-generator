@@ -350,7 +350,7 @@ const processHowTo=(state,action)=>{
     const vscode=state.vscode;
     vscode.postMessage({
         command: 'OPEN_URL',
-        url : 'http://www.google.com'
+        url : 'https://youtu.be/uXwIMh8bK0A'
     });
 
     return state;
