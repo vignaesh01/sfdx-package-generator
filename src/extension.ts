@@ -359,6 +359,10 @@ class CodingPanel {
 		});
 
 		}else{
+			let manifestPath = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, "/manifest");
+			if(!fs.existsSync(manifestPath)) {
+				fs.mkdirSync(manifestPath);
+			}
 			fs.writeFile(vscode.workspace.workspaceFolders[0].uri.fsPath+"/manifest/package.xml", xmlString, (err) => {
 				if (err) {
 					console.log(err);
