@@ -93,7 +93,7 @@ class CodingPanel {
 	private  VERSION_END='</version>';
 	private  PACKAGE_END='</Package>';
 	private NEW_LINE ='\n';
-	private VERSION_NUM='48.0';
+	private VERSION_NUM='49.0';
 	private CHAR_TAB='\t';
 	private LOADING='*loading..';
 	private infoMsg='All metadata selected except ';
@@ -399,7 +399,7 @@ class CodingPanel {
 				
 	
 				var p = new Promise(resolve => {
-					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType;
+					let sfdxCmd ="sfdx force:mdapi:listmetadata -a "+this.VERSION_NUM+" --json -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
 						maxBuffer: 1024 * 1024 * 6,
 						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -456,7 +456,7 @@ class CodingPanel {
 				//get the folder
 
 		let folderType = this.reportFolderMap[mType];
-		let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+folderType;
+		let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+folderType;
 
 		vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
@@ -588,7 +588,7 @@ class CodingPanel {
 				
 	
 				var p = new Promise(resolve => {
-					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType;
+					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
 						maxBuffer: 1024 * 1024 * 6,
 						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -657,7 +657,7 @@ class CodingPanel {
 					
 		
 					var p = new Promise(resolve => {
-						let sfdxCmd ="sfdx force:mdapi:listmetadata --json -m "+mType+" --folder "+folderNames[index];
+						let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+mType+" --folder "+folderNames[index];
 						let foo: child.ChildProcess = child.exec(sfdxCmd,{
 							maxBuffer: 1024 * 1024 * 6,
 							cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -901,7 +901,7 @@ private getMetadataTypes(mpExistingPackageXML){
 		console.log("vscode.workspace.workspaceFolders[0].uri.fsPath "+vscode.workspace.workspaceFolders[0].uri.fsPath);
 
 		var p = new Promise(resolve => {
-			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata --json',{
+			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata -a '+this.VERSION_NUM+' --json',{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});

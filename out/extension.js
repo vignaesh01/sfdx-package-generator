@@ -80,7 +80,7 @@ class CodingPanel {
         this.VERSION_END = '</version>';
         this.PACKAGE_END = '</Package>';
         this.NEW_LINE = '\n';
-        this.VERSION_NUM = '48.0';
+        this.VERSION_NUM = '49.0';
         this.CHAR_TAB = '\t';
         this.LOADING = '*loading..';
         this.infoMsg = 'All metadata selected except ';
@@ -305,7 +305,7 @@ class CodingPanel {
                     console.log("User canceled the long running operation");
                 });
                 var p = new Promise(resolve => {
-                    let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + mType;
+                    let sfdxCmd = "sfdx force:mdapi:listmetadata -a " + this.VERSION_NUM + " --json -m " + mType;
                     let foo = child.exec(sfdxCmd, {
                         maxBuffer: 1024 * 1024 * 6,
                         cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -346,7 +346,7 @@ class CodingPanel {
         else {
             //get the folder
             let folderType = this.reportFolderMap[mType];
-            let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + folderType;
+            let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + folderType;
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "Processing Metadata : " + folderType,
@@ -448,7 +448,7 @@ class CodingPanel {
                 console.log("User canceled the long running operation");
             });
             var p = new Promise(resolve => {
-                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + mType;
+                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + mType;
                 let foo = child.exec(sfdxCmd, {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -501,7 +501,7 @@ class CodingPanel {
                 console.log("User canceled the long running operation");
             });
             var p = new Promise(resolve => {
-                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -m " + mType + " --folder " + folderNames[index];
+                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + mType + " --folder " + folderNames[index];
                 let foo = child.exec(sfdxCmd, {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -697,7 +697,7 @@ class CodingPanel {
             });
             console.log("vscode.workspace.workspaceFolders[0].uri.fsPath " + vscode.workspace.workspaceFolders[0].uri.fsPath);
             var p = new Promise(resolve => {
-                var foo = child.exec('sfdx force:mdapi:describemetadata --json', {
+                var foo = child.exec('sfdx force:mdapi:describemetadata -a ' + this.VERSION_NUM + ' --json', {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
                 });
