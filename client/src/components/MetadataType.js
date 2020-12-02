@@ -42,7 +42,7 @@ export default function MetadataType() {
     metadataType.isIndeterminate=false;//reset indeterminate state
     console.log(metadataType);
     dispatch({type: "MDATA_TYPE_CHECKBOX_STATE_CHANGE" , payload : metadataType});
-    window.scrollTo(0, 0);
+    //window.scrollTo(0, 0); //this line is commented in an attempt to solve https://github.com/vignaesh01/sfdx-package-generator/issues/35
     
   };
 
@@ -51,7 +51,7 @@ export default function MetadataType() {
     console.log('handleMetadataClick invoked MetadataType.js');
     console.log(metadataType);
     dispatch({type: "MDATA_TYPE_CLICK" , payload : metadataType});
-    window.scrollTo(0, 0);
+    //window.scrollTo(0, 0); //this line is commented in an attempt to solve https://github.com/vignaesh01/sfdx-package-generator/issues/35
   };
 
   const handleSelectAll =()=>{
