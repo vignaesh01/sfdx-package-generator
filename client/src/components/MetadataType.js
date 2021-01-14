@@ -16,6 +16,7 @@ import ListItemSecondaryAction from '@material-ui/core/ListItemSecondaryAction';
 import Checkbox from '@material-ui/core/Checkbox';
 import IconButton from '@material-ui/core/IconButton';
 import NavigateNextIcon from '@material-ui/icons/NavigateNext';
+import Paper from '@material-ui/core/Paper';//Added for #35
 
 const useStyles = makeStyles({
   root: {
@@ -42,7 +43,7 @@ export default function MetadataType() {
     metadataType.isIndeterminate=false;//reset indeterminate state
     console.log(metadataType);
     dispatch({type: "MDATA_TYPE_CHECKBOX_STATE_CHANGE" , payload : metadataType});
-    window.scrollTo(0, 0);
+    //window.scrollTo(0, 0);Commented for #35
     
   };
 
@@ -51,7 +52,7 @@ export default function MetadataType() {
     console.log('handleMetadataClick invoked MetadataType.js');
     console.log(metadataType);
     dispatch({type: "MDATA_TYPE_CLICK" , payload : metadataType});
-    window.scrollTo(0, 0);
+    //window.scrollTo(0, 0);Commented for #35
   };
 
   const handleSelectAll =()=>{
@@ -125,6 +126,8 @@ export default function MetadataType() {
         }}
         fullWidth
         />
+      {/*Added for #35*/}
+        <Paper style={{maxHeight: 500, overflow: 'auto'}}>
         <List dense component="nav" aria-label="Metadata Types">
         {globalState.metadataTypes.map(metadataType =>{
 
@@ -162,6 +165,8 @@ export default function MetadataType() {
       } 
         
       </List>
+      </Paper>
+      {/*Added for #35*/}
       </CardContent>
     </Card>
   );

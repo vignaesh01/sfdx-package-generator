@@ -11,6 +11,7 @@ import SearchIcon from '@material-ui/icons/Search';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Paper from '@material-ui/core/Paper';//Added for #35
 
 const useStyles = makeStyles({
   root: {
@@ -127,7 +128,8 @@ export default function ComponentList({selectedMetadataType,isShowChildren}) {
       }}
       fullWidth
       />
-
+      {/*Added for #35*/}
+      <Paper style={{maxHeight: 500, overflow: 'auto'}}>
       <FormGroup>
         {
             selectedMetadataType.children.map(child=>{
@@ -150,6 +152,8 @@ export default function ComponentList({selectedMetadataType,isShowChildren}) {
         }
         
       </FormGroup>
+      </Paper>
+      {/*Added for #35*/}
       </CardContent>
     </Card>
   );
