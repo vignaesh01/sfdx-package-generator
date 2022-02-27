@@ -307,7 +307,7 @@ class CodingPanel {
                 var p = new Promise(resolve => {
                     let sfdxCmd = "sfdx force:mdapi:listmetadata -a " + this.VERSION_NUM + " --json -m " + mType;
                     let foo = child.exec(sfdxCmd, {
-                        maxBuffer: 1024 * 1024 * 6,
+                        maxBuffer: 1024 * 1024 * 8,
                         cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
                     });
                     let bufferOutData = '';
