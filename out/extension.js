@@ -80,7 +80,7 @@ class CodingPanel {
         this.VERSION_END = '</version>';
         this.PACKAGE_END = '</Package>';
         this.NEW_LINE = '\n';
-        this.VERSION_NUM = '53.0';
+        this.VERSION_NUM = '55.0';
         this.CHAR_TAB = '\t';
         this.LOADING = '*loading..';
         this.infoMsg = 'All metadata selected except ';
