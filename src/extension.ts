@@ -93,7 +93,7 @@ class CodingPanel {
 	private  VERSION_END='</version>';
 	private  PACKAGE_END='</Package>';
 	private NEW_LINE ='\n';
-	private VERSION_NUM='55.0';
+	private VERSION_NUM='58.0';
 	private CHAR_TAB='\t';
 	private LOADING='*loading..';
 	private infoMsg='All metadata selected except ';
