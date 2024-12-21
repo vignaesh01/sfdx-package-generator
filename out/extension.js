@@ -1,89 +1,193 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const path = require("path");
-const vscode = require("vscode");
-const child = require("child_process");
+exports.activate = activate;
+const path = __importStar(require("path"));
+const vscode = __importStar(require("vscode"));
+const child = __importStar(require("child_process"));
+let clipboardy;
 var fs = require("fs");
 var xml2js = require('xml2js');
-var clipboardy = require('clipboardy');
+let DEFAULT_API_VERSION = '';
 function activate(context) {
-    context.subscriptions.push(vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata', () => {
+    context.subscriptions.push(vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata', async () => {
+        // Dynamically import clipboardy
+        const module = await import('clipboardy');
+        clipboardy = module.default || module; // Handle both default and named exports
+        //check whether clipboardy got imported correctly
+        console.log(clipboardy);
+        DEFAULT_API_VERSION = await getAPIVersion();
+        console.log('DEFAULT_API_VERSION ' + DEFAULT_API_VERSION);
         CodingPanel.createOrShow(context.extensionPath);
     }));
 }
-exports.activate = activate;
+function getAPIVersion() {
+    console.log('getAPIVersion invoked');
+    return new Promise((resolve, reject) => {
+        let sfdxCmd = "sf org display --json";
+        let foo = child.exec(sfdxCmd, {
+            maxBuffer: 1024 * 1024 * 6,
+            cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+        });
+        let bufferOutData = '';
+        foo.stdout.on("data", (dataArg) => {
+            console.log('stdout: ' + dataArg);
+            bufferOutData += dataArg;
+        });
+        /*foo.stderr.on("data",(data : any)=> {
+            console.log('stderr: ' + data);
+            //vscode.window.showErrorMessage(data);
+            resolve(undefined);
+        });
+
+        foo.stdin.on("data",(data : any)=> {
+            console.log('stdin: ' + data);
+            resolve(undefined);
+        });*/
+        foo.on("exit", (code, signal) => {
+            console.log("exited with code " + code);
+            console.log("bufferOutData " + bufferOutData);
+            let data = JSON.parse(bufferOutData);
+            let apiVersion = data.result.apiVersion;
+            console.log('apiVersion ' + apiVersion);
+            resolve(apiVersion);
+        });
+    });
+}
 /**
  * Manages cat coding webview panels
  */
 class CodingPanel {
+    /**
+     * Track the currently panel. Only allow a single panel to exist at a time.
+     */
+    static currentPanel;
+    static viewType = 'Coding';
+    _panel;
+    _extensionPath;
+    _disposables = [];
+    reportFolderMap = {
+        Dashboard: 'DashboardFolder',
+        Document: 'DocumentFolder',
+        EmailTemplate: 'EmailFolder',
+        Report: 'ReportFolder'
+    };
+    //Modified for #18
+    //metadata types that accept * reg exp
+    regExpArr = ['AccountRelationshipShareRule', 'ActionLinkGroupTemplate', 'ApexClass', 'ApexComponent',
+        'ApexPage', 'ApexTrigger', 'AppMenu', 'ApprovalProcess', 'ArticleType', 'AssignmentRules', 'Audience', 'AuthProvider',
+        'AuraDefinitionBundle', 'AutoResponseRules', 'Bot', 'BrandingSet', 'CallCenter', 'Certificate', 'CleanDataService',
+        'CMSConnectSource', 'Community', 'CommunityTemplateDefinition', 'CommunityThemeDefinition', 'CompactLayout',
+        'ConnectedApp', 'ContentAsset', 'CorsWhitelistOrigin', 'CustomApplication', 'CustomApplicationComponent',
+        'CustomFeedFilter', 'CustomHelpMenuSection', 'CustomMetadata', 'CustomLabels', 'CustomObjectTranslation',
+        'CustomPageWebLink', 'CustomPermission', 'CustomSite', 'CustomTab', 'DataCategoryGroup', 'DelegateGroup',
+        'DuplicateRule', 'EclairGeoData', 'EntitlementProcess', 'EntitlementTemplate', 'EventDelivery', 'EventSubscription',
+        'ExternalServiceRegistration', 'ExternalDataSource', 'FeatureParameterBoolean', 'FeatureParameterDate', 'FeatureParameterInteger',
+        'FieldSet', 'FlexiPage', 'Flow', 'FlowCategory', 'FlowDefinition', 'GlobalValueSet', 'GlobalValueSetTranslation', 'Group', 'HomePageComponent',
+        'HomePageLayout', 'InstalledPackage', 'KeywordList', 'Layout', 'LightningBolt', 'LightningComponentBundle', 'LightningExperienceTheme',
+        'LiveChatAgentConfig', 'LiveChatButton', 'LiveChatDeployment', 'LiveChatSensitiveDataRule', 'ManagedTopics', 'MatchingRules', 'MilestoneType',
+        'MlDomain', 'ModerationRule', 'NamedCredential', 'Network', 'NetworkBranding', 'PathAssistant', 'PermissionSet', 'PlatformCachePartition',
+        'Portal', 'PostTemplate', 'PresenceDeclineReason', 'PresenceUserConfig', 'Profile', 'ProfilePasswordPolicy', 'ProfileSessionSetting',
+        'Queue', 'QueueRoutingConfig', 'QuickAction', 'RecommendationStrategy', 'RecordActionDeployment', 'ReportType', 'Role', 'SamlSsoConfig',
+        'Scontrol', 'ServiceChannel', 'ServicePresenceStatus', 'SharingRules', 'SharingSet', 'SiteDotCom', 'Skill', 'StandardValueSetTranslation',
+        'StaticResource', 'SynonymDictionary', 'Territory', 'Territory2', 'Territory2Model', 'Territory2Rule', 'Territory2Type', 'TopicsForObjects',
+        'TransactionSecurityPolicy', 'Translations', 'WaveApplication', 'WaveDashboard', 'WaveDataflow', 'WaveDataset', 'WaveLens', 'WaveTemplateBundle',
+        'WaveXmd', 'Workflow',
+        'ActionPlanTemplate',
+        'AnimationRule',
+        'ChannelLayout',
+        'ApexTestSuite',
+        'AppointmentSchedulingPolicy',
+        'CampaignInfluenceModel',
+        'ChatterExtension',
+        'CspTrustedSite',
+        'CompactLayout',
+        'ExperienceBundle',
+        'LightningMessageChannel',
+        'MyDomainDiscoverableLogin',
+        'NavigationMenu',
+        'OauthCustomScope',
+        'PaymentGatewayProvider',
+        'PlatformEventChannel',
+        'PlatformEventChannelMember',
+        'Prompt',
+        'RedirectWhitelistUrl',
+        'Settings',
+        'TimeSheetTemplate',
+        'WaveRecipe',
+        'WorkSkillRouting'];
+    PACKAGE_START = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
+    TYPES_START = '<types>';
+    TYPES_END = '</types>';
+    MEMBERS_START = '<members>';
+    MEMBERS_END = '</members>';
+    NAME_START = '<name>';
+    NAME_END = '</name>';
+    VERSION_START = '<version>';
+    VERSION_END = '</version>';
+    PACKAGE_END = '</Package>';
+    NEW_LINE = '\n';
+    VERSION_NUM = DEFAULT_API_VERSION;
+    CHAR_TAB = '\t';
+    LOADING = '*loading..';
+    infoMsg = 'All metadata selected except ';
+    static createOrShow(extensionPath) {
+        const column = vscode.window.activeTextEditor
+            ? vscode.window.activeTextEditor.viewColumn
+            : undefined;
+        // If we already have a panel, show it.
+        if (CodingPanel.currentPanel) {
+            CodingPanel.currentPanel._panel.reveal(column);
+            return;
+        }
+        // Otherwise, create a new panel.
+        const panel = vscode.window.createWebviewPanel(CodingPanel.viewType, 'Choose Metadata Components', column || vscode.ViewColumn.One, {
+            // Enable javascript in the webview
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            // And restrict the webview to only loading content from our extension's `media` directory.
+            //localResourceRoots: [vscode.Uri.file(path.join(extensionPath, 'media'))]Commented for UI Changes
+        });
+        //get the API version
+        CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
+    }
+    static revive(panel, extensionPath) {
+        CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
+    }
     constructor(panel, extensionPath) {
-        this._disposables = [];
-        this.reportFolderMap = {
-            Dashboard: 'DashboardFolder',
-            Document: 'DocumentFolder',
-            EmailTemplate: 'EmailFolder',
-            Report: 'ReportFolder'
-        };
-        //Modified for #18
-        //metadata types that accept * reg exp
-        this.regExpArr = ['AccountRelationshipShareRule', 'ActionLinkGroupTemplate', 'ApexClass', 'ApexComponent',
-            'ApexPage', 'ApexTrigger', 'AppMenu', 'ApprovalProcess', 'ArticleType', 'AssignmentRules', 'Audience', 'AuthProvider',
-            'AuraDefinitionBundle', 'AutoResponseRules', 'Bot', 'BrandingSet', 'CallCenter', 'Certificate', 'CleanDataService',
-            'CMSConnectSource', 'Community', 'CommunityTemplateDefinition', 'CommunityThemeDefinition', 'CompactLayout',
-            'ConnectedApp', 'ContentAsset', 'CorsWhitelistOrigin', 'CustomApplication', 'CustomApplicationComponent',
-            'CustomFeedFilter', 'CustomHelpMenuSection', 'CustomMetadata', 'CustomLabels', 'CustomObjectTranslation',
-            'CustomPageWebLink', 'CustomPermission', 'CustomSite', 'CustomTab', 'DataCategoryGroup', 'DelegateGroup',
-            'DuplicateRule', 'EclairGeoData', 'EntitlementProcess', 'EntitlementTemplate', 'EventDelivery', 'EventSubscription',
-            'ExternalServiceRegistration', 'ExternalDataSource', 'FeatureParameterBoolean', 'FeatureParameterDate', 'FeatureParameterInteger',
-            'FieldSet', 'FlexiPage', 'Flow', 'FlowCategory', 'FlowDefinition', 'GlobalValueSet', 'GlobalValueSetTranslation', 'Group', 'HomePageComponent',
-            'HomePageLayout', 'InstalledPackage', 'KeywordList', 'Layout', 'LightningBolt', 'LightningComponentBundle', 'LightningExperienceTheme',
-            'LiveChatAgentConfig', 'LiveChatButton', 'LiveChatDeployment', 'LiveChatSensitiveDataRule', 'ManagedTopics', 'MatchingRules', 'MilestoneType',
-            'MlDomain', 'ModerationRule', 'NamedCredential', 'Network', 'NetworkBranding', 'PathAssistant', 'PermissionSet', 'PlatformCachePartition',
-            'Portal', 'PostTemplate', 'PresenceDeclineReason', 'PresenceUserConfig', 'Profile', 'ProfilePasswordPolicy', 'ProfileSessionSetting',
-            'Queue', 'QueueRoutingConfig', 'QuickAction', 'RecommendationStrategy', 'RecordActionDeployment', 'ReportType', 'Role', 'SamlSsoConfig',
-            'Scontrol', 'ServiceChannel', 'ServicePresenceStatus', 'SharingRules', 'SharingSet', 'SiteDotCom', 'Skill', 'StandardValueSetTranslation',
-            'StaticResource', 'SynonymDictionary', 'Territory', 'Territory2', 'Territory2Model', 'Territory2Rule', 'Territory2Type', 'TopicsForObjects',
-            'TransactionSecurityPolicy', 'Translations', 'WaveApplication', 'WaveDashboard', 'WaveDataflow', 'WaveDataset', 'WaveLens', 'WaveTemplateBundle',
-            'WaveXmd', 'Workflow',
-            'ActionPlanTemplate',
-            'AnimationRule',
-            'ChannelLayout',
-            'ApexTestSuite',
-            'AppointmentSchedulingPolicy',
-            'CampaignInfluenceModel',
-            'ChatterExtension',
-            'CspTrustedSite',
-            'CompactLayout',
-            'ExperienceBundle',
-            'LightningMessageChannel',
-            'MyDomainDiscoverableLogin',
-            'NavigationMenu',
-            'OauthCustomScope',
-            'PaymentGatewayProvider',
-            'PlatformEventChannel',
-            'PlatformEventChannelMember',
-            'Prompt',
-            'RedirectWhitelistUrl',
-            'Settings',
-            'TimeSheetTemplate',
-            'WaveRecipe',
-            'WorkSkillRouting'];
-        this.PACKAGE_START = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
-            '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n';
-        this.TYPES_START = '<types>';
-        this.TYPES_END = '</types>';
-        this.MEMBERS_START = '<members>';
-        this.MEMBERS_END = '</members>';
-        this.NAME_START = '<name>';
-        this.NAME_END = '</name>';
-        this.VERSION_START = '<version>';
-        this.VERSION_END = '</version>';
-        this.PACKAGE_END = '</Package>';
-        this.NEW_LINE = '\n';
-        this.VERSION_NUM = '62.0';
-        this.CHAR_TAB = '\t';
-        this.LOADING = '*loading..';
-        this.infoMsg = 'All metadata selected except ';
         this._panel = panel;
         this._extensionPath = extensionPath;
         // Set the webview's initial html content
@@ -102,7 +206,7 @@ class CodingPanel {
             this._disposables
         );*/
         // Handle messages from the webview
-        this._panel.webview.onDidReceiveMessage(message => {
+        this._panel.webview.onDidReceiveMessage(async (message) => {
             switch (message.command) {
                 case 'fetchChildren':
                     console.log('onDidReceiveMessage fetchChildren');
@@ -119,6 +223,7 @@ class CodingPanel {
                     return;
                 case 'copyToClipboard':
                     console.log('onDidReceiveMessage copyToClipboard');
+                    //clipboardy = await import('clipboardy');
                     this.buildPackageXML(message.selectedNodes, true);
                     return;
                 case 'selectAll':
@@ -142,6 +247,7 @@ class CodingPanel {
                     return;
                 case 'COPY_TO_CLIPBOARD':
                     console.log('onDidReceiveMessage COPY_TO_CLIPBOARD');
+                    //clipboardy = await import('clipboardy');
                     this.handleCopyToClipboard(message.metadataTypes);
                     return;
                 case 'OPEN_URL':
@@ -151,26 +257,6 @@ class CodingPanel {
                 //Added for Ui Changes - ends
             }
         }, null, this._disposables);
-    }
-    static createOrShow(extensionPath) {
-        const column = vscode.window.activeTextEditor
-            ? vscode.window.activeTextEditor.viewColumn
-            : undefined;
-        // If we already have a panel, show it.
-        if (CodingPanel.currentPanel) {
-            CodingPanel.currentPanel._panel.reveal(column);
-            return;
-        }
-        // Otherwise, create a new panel.
-        const panel = vscode.window.createWebviewPanel(CodingPanel.viewType, 'Choose Metadata Components', column || vscode.ViewColumn.One, {
-            // Enable javascript in the webview
-            enableScripts: true,
-            retainContextWhenHidden: true,
-        });
-        CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
-    }
-    static revive(panel, extensionPath) {
-        CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
     }
     buildPackageXML(selectedNodes, isCopyToClipboard) {
         console.log('Invoked buildPackageXML');
@@ -268,6 +354,8 @@ class CodingPanel {
         xmlString += this.PACKAGE_END;
         console.log(xmlString);
         if (isCopyToClipboard) {
+            console.log('Copy to Clipboard - Initiated');
+            console.log(clipboardy);
             clipboardy.write(xmlString).then((result) => {
                 console.log(result);
                 vscode.window.showInformationMessage("Contents Copied to Clipboard successfully!!");
@@ -305,7 +393,7 @@ class CodingPanel {
                     console.log("User canceled the long running operation");
                 });
                 var p = new Promise(resolve => {
-                    let sfdxCmd = "sfdx force:mdapi:listmetadata -a " + this.VERSION_NUM + " --json -m " + mType;
+                    let sfdxCmd = "sf org list metadata --api-version " + this.VERSION_NUM + " --json -m " + mType;
                     let foo = child.exec(sfdxCmd, {
                         maxBuffer: 1024 * 1024 * 8,
                         cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -322,13 +410,13 @@ class CodingPanel {
                     });
                     foo.stderr.on("data", (data) => {
                         console.log('stderr: ' + data);
-                        vscode.window.showErrorMessage(data);
-                        resolve();
+                        //vscode.window.showErrorMessage(data);
+                        resolve(undefined);
                     });
                     foo.stdin.on("data", (data) => {
                         console.log('stdin: ' + data);
                         //vscode.window.showErrorMessage(data);
-                        resolve();
+                        resolve(undefined);
                     });
                     foo.on('exit', (code, signal) => {
                         console.log('exit code ' + code);
@@ -346,7 +434,7 @@ class CodingPanel {
         else {
             //get the folder
             let folderType = this.reportFolderMap[mType];
-            let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + folderType;
+            let sfdxCmd = "sf org list metadata --json --api-version " + this.VERSION_NUM + " -m " + folderType;
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: "Processing Metadata : " + folderType,
@@ -388,12 +476,12 @@ class CodingPanel {
                     });
                     foo.stderr.on("data", (data) => {
                         console.log('stderr: ' + data);
-                        vscode.window.showErrorMessage(data);
-                        resolve();
+                        //vscode.window.showErrorMessage(data);
+                        resolve(undefined);
                     });
                     foo.stdin.on("data", (data) => {
                         console.log('stdin: ' + data);
-                        resolve();
+                        resolve(undefined);
                     });
                     foo.on('exit', (code, signal) => {
                         console.log('exit code ' + code);
@@ -418,7 +506,7 @@ class CodingPanel {
                         }
                         //get the components inside each folder
                         this.getComponentsInsideFolders(folderNames, mType, 0, []);
-                        resolve();
+                        resolve(undefined);
                     });
                 });
                 return p;
@@ -448,7 +536,7 @@ class CodingPanel {
                 console.log("User canceled the long running operation");
             });
             var p = new Promise(resolve => {
-                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + mType;
+                let sfdxCmd = "sf org list metadata --json --api-version " + this.VERSION_NUM + " -m " + mType;
                 let foo = child.exec(sfdxCmd, {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -465,13 +553,13 @@ class CodingPanel {
                 });
                 foo.stderr.on("data", (data) => {
                     console.log('stderr: ' + data);
-                    vscode.window.showErrorMessage(data);
-                    resolve();
+                    //vscode.window.showErrorMessage(data);
+                    resolve(undefined);
                 });
                 foo.stdin.on("data", (data) => {
                     console.log('stdin: ' + data);
                     //vscode.window.showErrorMessage(data);
-                    resolve();
+                    resolve(undefined);
                 });
                 foo.on('exit', (code, signal) => {
                     console.log('exit code ' + code);
@@ -480,7 +568,7 @@ class CodingPanel {
                     let depArr = [];
                     let results = data.result;
                     this._panel.webview.postMessage({ command: 'listmetadata', results: results, metadataType: mType });
-                    resolve();
+                    resolve(undefined);
                     this.fetchAllChildren(selectedMetadata, skippedMetadataTypes, ++index); //recurse through other metadata
                 });
             });
@@ -501,7 +589,7 @@ class CodingPanel {
                 console.log("User canceled the long running operation");
             });
             var p = new Promise(resolve => {
-                let sfdxCmd = "sfdx force:mdapi:listmetadata --json -a " + this.VERSION_NUM + " -m " + mType + " --folder " + folderNames[index];
+                let sfdxCmd = "sf org list metadata --json --api-version " + this.VERSION_NUM + " -m " + mType + " --folder " + folderNames[index];
                 let foo = child.exec(sfdxCmd, {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -532,12 +620,12 @@ class CodingPanel {
                 });
                 foo.stderr.on("data", (data) => {
                     console.log('stderr: ' + data);
-                    vscode.window.showErrorMessage(data);
-                    resolve();
+                    //vscode.window.showErrorMessage(data);
+                    resolve(undefined);
                 });
                 foo.stdin.on("data", (data) => {
                     console.log('stdin: ' + data);
-                    resolve();
+                    resolve(undefined);
                 });
                 foo.on('exit', (code, signal) => {
                     console.log('exit code ' + code);
@@ -557,7 +645,7 @@ class CodingPanel {
                             }
                         }
                     }
-                    resolve();
+                    resolve(undefined);
                     console.log('After resolve getComponentsInsideFolders');
                     this.getComponentsInsideFolders(folderNames, mType, ++index, resultsArr);
                 });
@@ -697,7 +785,7 @@ class CodingPanel {
             });
             console.log("vscode.workspace.workspaceFolders[0].uri.fsPath " + vscode.workspace.workspaceFolders[0].uri.fsPath);
             var p = new Promise(resolve => {
-                var foo = child.exec('sfdx force:mdapi:describemetadata -a ' + this.VERSION_NUM + ' --json', {
+                var foo = child.exec('sf org list metadata-types --api-version ' + this.VERSION_NUM + ' --json', {
                     maxBuffer: 1024 * 1024 * 6,
                     cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
                 });
@@ -719,17 +807,17 @@ class CodingPanel {
                 });
                 foo.stderr.on("data", (data) => {
                     console.log('stderr: ' + data);
-                    vscode.window.showErrorMessage(data);
-                    resolve();
+                    //vscode.window.showErrorMessage(data);
+                    resolve(undefined);
                 });
                 foo.stdin.on("data", (data) => {
                     console.log('stdin: ' + data);
-                    resolve();
+                    resolve(undefined);
                 });
                 foo.on("exit", (code, signal) => {
                     console.log("exited with code " + code);
                     console.log("bufferOutData " + bufferOutData);
-                    resolve();
+                    resolve(undefined);
                     let data = JSON.parse(bufferOutData);
                     let depArr = [];
                     let metadataObjectsArr = data.result.metadataObjects;
@@ -761,13 +849,17 @@ class CodingPanel {
             }
         });
         const scriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[0]));
-        const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        //const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const scriptUri = this._panel.webview.asWebviewUri(scriptPathOnDisk);
         const runtimeScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[1]));
-        const runtimeScriptUri = runtimeScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        //const runtimeScriptUri = runtimeScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const runtimeScriptUri = this._panel.webview.asWebviewUri(runtimeScriptPathOnDisk);
         const staticScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', scriptEntryPoints[2]));
-        const staticScriptUri = staticScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        //const staticScriptUri = staticScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+        const staticScriptUri = this._panel.webview.asWebviewUri(staticScriptPathOnDisk);
         const stylePathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client', 'build', styleEntryPoints[0]));
-        const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+        //const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+        const styleUri = this._panel.webview.asWebviewUri(stylePathOnDisk);
         console.log(`scriptUri ${scriptUri}`);
         console.log(`styleUri ${styleUri}`);
         //Added for UI Changes - ends
@@ -784,6 +876,10 @@ class CodingPanel {
         //Commented for UI Changes - ends
         // Use a nonce to whitelist which scripts can be run
         const nonce = getNonce();
+        // Base CSP directive
+        const cspSource = this._panel.webview.cspSource;
+        // Define the allowed resources path
+        const resourcePathUri = this._panel.webview.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, '')));
         return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -798,14 +894,14 @@ class CodingPanel {
 				<!--
 				<meta
 				http-equiv="Content-Security-Policy"
-				content="default-src 'none'; img-src vscode-resource: https:; script-src vscode-resource: https:; style-src vscode-resource: https:;"
+				content="default-src 'none'; img-src 'vscode-resource:' https:; script-src 'vscode-resource:' https:; style-src 'vscode-resource:' https:;"
 			  	/>
 			   	-->
-			 <!-- Added for UI Changes--> 
-			  <meta http-equiv="Content-Security-Policy" content="default-src *; 
-			  connect-src vscode-resource: https:;
-			  img-src vscode-resource: https:; style-src 'unsafe-inline' vscode-resource: https:; 
-			  script-src 'self' 'unsafe-inline' 'unsafe-eval' vscode-resource: https:">
+			 	<!-- Added for UI Changes--> 
+			  	<meta http-equiv="Content-Security-Policy" content="default-src; 
+			  connect-src vscode-resource: https: ${cspSource};
+			  img-src vscode-resource: https: ${cspSource} ${resourcePathUri}; style-src 'unsafe-inline' vscode-resource: https: ${cspSource}; 
+			  script-src 'self' 'unsafe-inline' 'unsafe-eval' vscode-resource: https: ${cspSource}">
 
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
@@ -852,7 +948,6 @@ class CodingPanel {
             </html>`;
     }
 }
-CodingPanel.viewType = 'Coding';
 function getNonce() {
     let text = '';
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

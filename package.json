@@ -2,7 +2,7 @@
 	"name": "sfdx-package-xml-generator",
 	"displayName": "Salesforce Package.xml Generator Extension for VS Code",
 	"description": "Extension for generating Package.xml on the Salesforce Platform",
-	"version": "2.0.14",
+	"version": "2.1.0",
 	"publisher": "VignaeshRamA",
 	"repository": "https://github.com/vignaesh01/sfdx-package-generator",
 	"icon": "icon.png",
@@ -14,15 +14,13 @@
 		"salesforce package xml generator"
 	],
 	"engines": {
-		"vscode": "^1.26.0"
+		"vscode": "^1.76.0"
 	},
 	"categories": [
 		"Extension Packs",
 		"Other"
 	],
-	"activationEvents": [
-		"onCommand:sfdxPackageGen.chooseMetadata"
-	],
+	"activationEvents": [],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
@@ -36,17 +34,22 @@
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
-		"watch": "tsc -w -p ./",
-		"postinstall": "node ./node_modules/vscode/bin/install"
+		"lint": "eslint",
+		"watch": "tsc -w -p ./"
 	},
 	"dependencies": {
-		"clipboardy": "^2.0.0",
-		"xml2js": "^0.4.19"
+		"clipboardy": "^4.0.0",
+		"xml2js": "^0.4.23"
 	},
 	"devDependencies": {
-		"@types/node": "^10.5.2",
-		"tslint": "^5.11.0",
-		"typescript": "^3.3.1",
-		"vscode": "^1.1.29"
+		"@eslint/js": "^9.13.0",
+		"@stylistic/eslint-plugin": "^2.9.0",
+		"@types/clipboardy": "^1.1.0",
+		"@types/node": "^20",
+		"@types/vscode": "^1.73.0",
+		"@types/vscode-webview": "^1.57.0",
+		"eslint": "^9.17.0",
+		"typescript": "^5.7.2",
+		"typescript-eslint": "^8.16.0"
 	}
 }
