@@ -1,13 +1,22 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as child from 'child_process';
+
+let clipboardy: any;
 var fs = require("fs");
 var xml2js = require('xml2js');
-var clipboardy = require('clipboardy');
+let DEFAULT_API_VERSION='';
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
-		vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata', () => {
+		vscode.commands.registerCommand('sfdxPackageGen.chooseMetadata',async () => {
+			// Dynamically import clipboardy
+			const module = await import('clipboardy');
+        	clipboardy = module.default || module; // Handle both default and named exports
+			//check whether clipboardy got imported correctly
+			console.log(clipboardy);
+			DEFAULT_API_VERSION=await getAPIVersion();
+			console.log('DEFAULT_API_VERSION '+DEFAULT_API_VERSION);
 			CodingPanel.createOrShow(context.extensionPath);
 		})
 	);
@@ -15,6 +24,41 @@ export function activate(context: vscode.ExtensionContext) {
 
 }
 
+ function getAPIVersion():Promise<string>{
+	console.log('getAPIVersion invoked');
+	return new Promise((resolve,reject)=>{
+		let sfdxCmd ="sf org display --json";
+		let foo: child.ChildProcess = child.exec(sfdxCmd,{
+			maxBuffer: 1024 * 1024 * 6,
+			cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
+		});
+		let bufferOutData='';
+		foo.stdout.on("data",(dataArg : any)=> {
+			console.log('stdout: ' + dataArg);
+			bufferOutData+=dataArg;
+		});
+
+		/*foo.stderr.on("data",(data : any)=> {
+			console.log('stderr: ' + data);
+			//vscode.window.showErrorMessage(data);
+			resolve(undefined);
+		});
+
+		foo.stdin.on("data",(data : any)=> {
+			console.log('stdin: ' + data);
+			resolve(undefined);
+		});*/
+
+		foo.on("exit", (code: number, signal: string) => {
+			console.log("exited with code "+code);
+			console.log("bufferOutData "+bufferOutData);
+			let data = JSON.parse(bufferOutData);
+			let apiVersion = data.result.apiVersion;
+			console.log('apiVersion '+apiVersion);
+			resolve(apiVersion);
+		});
+	});
+}
 /**
  * Manages cat coding webview panels
  */
@@ -93,7 +137,7 @@ class CodingPanel {
 	private  VERSION_END='</version>';
 	private  PACKAGE_END='</Package>';
 	private NEW_LINE ='\n';
-	private VERSION_NUM='62.0';
+	private  VERSION_NUM=DEFAULT_API_VERSION;
 	private CHAR_TAB='\t';
 	private LOADING='*loading..';
 	private infoMsg='All metadata selected except ';
@@ -122,7 +166,7 @@ class CodingPanel {
 				//localResourceRoots: [vscode.Uri.file(path.join(extensionPath, 'media'))]Commented for UI Changes
 			}
 		);
-
+		//get the API version
 		CodingPanel.currentPanel = new CodingPanel(panel, extensionPath);
 
 	}
@@ -155,7 +199,7 @@ class CodingPanel {
 
 		// Handle messages from the webview
 		this._panel.webview.onDidReceiveMessage(
-			message => {
+			async message => {
 				switch (message.command) {
 					case 'fetchChildren':
 						console.log('onDidReceiveMessage fetchChildren');
@@ -175,6 +219,7 @@ class CodingPanel {
 					
 					case 'copyToClipboard':
 							console.log('onDidReceiveMessage copyToClipboard');
+							//clipboardy = await import('clipboardy');
 							this.buildPackageXML(message.selectedNodes,true);
 							return;
 
@@ -202,6 +247,7 @@ class CodingPanel {
 					
 					case 'COPY_TO_CLIPBOARD':
 						console.log('onDidReceiveMessage COPY_TO_CLIPBOARD');
+						//clipboardy = await import('clipboardy');
 						this.handleCopyToClipboard(message.metadataTypes);
 						return;
 					
@@ -353,6 +399,8 @@ class CodingPanel {
 		console.log(xmlString);
 
 		if(isCopyToClipboard){
+			console.log('Copy to Clipboard - Initiated');
+			console.log(clipboardy);
 			clipboardy.write(xmlString).then((result)=>{
 				console.log(result);
 			vscode.window.showInformationMessage("Contents Copied to Clipboard successfully!!");
@@ -398,8 +446,8 @@ class CodingPanel {
 	
 				
 	
-				var p = new Promise(resolve => {
-					let sfdxCmd ="sfdx force:mdapi:listmetadata -a "+this.VERSION_NUM+" --json -m "+mType;
+				var p = new Promise<void>(resolve => {
+					let sfdxCmd ="sf org list metadata --api-version "+this.VERSION_NUM+" --json -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
 						maxBuffer: 1024 * 1024 * 8,
 						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -420,14 +468,14 @@ class CodingPanel {
 		
 				foo.stderr.on("data",(data : any)=> {
 					console.log('stderr: ' + data);
-					vscode.window.showErrorMessage(data);
-					resolve();
+					//vscode.window.showErrorMessage(data);
+					resolve(undefined);
 				});
 		
 				foo.stdin.on("data",(data : any)=> {
 					console.log('stdin: ' + data);
 					//vscode.window.showErrorMessage(data);
-					resolve();
+					resolve(undefined);
 				});
 				
 				foo.on('exit',(code,signal)=>{
@@ -456,7 +504,7 @@ class CodingPanel {
 				//get the folder
 
 		let folderType = this.reportFolderMap[mType];
-		let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+folderType;
+		let sfdxCmd ="sf org list metadata --json --api-version "+this.VERSION_NUM+" -m "+folderType;
 
 		vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
@@ -507,13 +555,13 @@ class CodingPanel {
 		
 				foo.stderr.on("data",(data : any)=> {
 					console.log('stderr: ' + data);
-					vscode.window.showErrorMessage(data);
-					resolve();
+					//vscode.window.showErrorMessage(data);
+					resolve(undefined);
 				});
 		
 				foo.stdin.on("data",(data : any)=> {
 					console.log('stdin: ' + data);
-					resolve();
+					resolve(undefined);
 				});
 				
 				foo.on('exit',(code,signal)=>{
@@ -540,7 +588,7 @@ class CodingPanel {
 		
 				//get the components inside each folder
 				this.getComponentsInsideFolders(folderNames,mType,0,[]);
-				resolve();
+				resolve(undefined);
 
 				});
 				
@@ -588,7 +636,7 @@ class CodingPanel {
 				
 	
 				var p = new Promise(resolve => {
-					let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+mType;
+					let sfdxCmd ="sf org list metadata --json --api-version "+this.VERSION_NUM+" -m "+mType;
 					let foo: child.ChildProcess = child.exec(sfdxCmd,{
 						maxBuffer: 1024 * 1024 * 6,
 						cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -609,14 +657,14 @@ class CodingPanel {
 		
 				foo.stderr.on("data",(data : any)=> {
 					console.log('stderr: ' + data);
-					vscode.window.showErrorMessage(data);
-					resolve();
+					//vscode.window.showErrorMessage(data);
+					resolve(undefined);
 				});
 		
 				foo.stdin.on("data",(data : any)=> {
 					console.log('stdin: ' + data);
 					//vscode.window.showErrorMessage(data);
-					resolve();
+					resolve(undefined);
 				});
 				
 				foo.on('exit',(code,signal)=>{
@@ -627,7 +675,7 @@ class CodingPanel {
 					let depArr=[];
 					let results = data.result;
 					this._panel.webview.postMessage({ command: 'listmetadata', results : results , metadataType : mType});
-					resolve();
+					resolve(undefined);
 					this.fetchAllChildren(selectedMetadata,skippedMetadataTypes,++index);//recurse through other metadata
 				});
 					
@@ -657,7 +705,7 @@ class CodingPanel {
 					
 		
 					var p = new Promise(resolve => {
-						let sfdxCmd ="sfdx force:mdapi:listmetadata --json -a "+this.VERSION_NUM+" -m "+mType+" --folder "+folderNames[index];
+						let sfdxCmd ="sf org list metadata --json --api-version "+this.VERSION_NUM+" -m "+mType+" --folder "+folderNames[index];
 						let foo: child.ChildProcess = child.exec(sfdxCmd,{
 							maxBuffer: 1024 * 1024 * 6,
 							cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
@@ -694,13 +742,13 @@ class CodingPanel {
 				
 						foo.stderr.on("data",(data : any)=> {
 							console.log('stderr: ' + data);
-							vscode.window.showErrorMessage(data);
-							resolve();
+							//vscode.window.showErrorMessage(data);
+							resolve(undefined);
 						});
 				
 						foo.stdin.on("data",(data : any)=> {
 							console.log('stdin: ' + data);
-							resolve();
+							resolve(undefined);
 						});
 						
 						foo.on('exit',(code,signal)=>{
@@ -723,7 +771,7 @@ class CodingPanel {
 								}
 						}
 							
-							resolve();
+							resolve(undefined);
 							console.log('After resolve getComponentsInsideFolders');
 							this.getComponentsInsideFolders(folderNames,mType,++index,resultsArr);
 
@@ -901,7 +949,7 @@ private getMetadataTypes(mpExistingPackageXML){
 		console.log("vscode.workspace.workspaceFolders[0].uri.fsPath "+vscode.workspace.workspaceFolders[0].uri.fsPath);
 
 		var p = new Promise(resolve => {
-			var foo: child.ChildProcess = child.exec('sfdx force:mdapi:describemetadata -a '+this.VERSION_NUM+' --json',{
+			var foo: child.ChildProcess = child.exec('sf org list metadata-types --api-version '+this.VERSION_NUM+' --json',{
 				maxBuffer: 1024 * 1024 * 6,
 				cwd: vscode.workspace.workspaceFolders[0].uri.fsPath
 			});
@@ -925,19 +973,19 @@ private getMetadataTypes(mpExistingPackageXML){
 	
 			foo.stderr.on("data",(data : any)=> {
 				console.log('stderr: ' + data);
-				vscode.window.showErrorMessage(data);
-				resolve();
+				//vscode.window.showErrorMessage(data);
+				resolve(undefined);
 			});
 	
 			foo.stdin.on("data",(data : any)=> {
 				console.log('stdin: ' + data);
-				resolve();
+				resolve(undefined);
 			});
 
 			foo.on("exit", (code: number, signal: string) => {
 				console.log("exited with code "+code);
 				console.log("bufferOutData "+bufferOutData);
-				resolve();
+				resolve(undefined);
 				let data = JSON.parse(bufferOutData);
 				let depArr=[];
 				let metadataObjectsArr = data.result.metadataObjects;
@@ -978,17 +1026,20 @@ private getMetadataTypes(mpExistingPackageXML){
 
 
 		const scriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath,'client', 'build', scriptEntryPoints[0]));
-		const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+		//const scriptUri = scriptPathOnDisk.with({ scheme: 'vscode-resource' });
+		const scriptUri = this._panel.webview.asWebviewUri(scriptPathOnDisk);
 
 		const runtimeScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath,'client', 'build', scriptEntryPoints[1]));
-		const runtimeScriptUri = runtimeScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+		//const runtimeScriptUri = runtimeScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+		const runtimeScriptUri = this._panel.webview.asWebviewUri(runtimeScriptPathOnDisk);
 
 		const staticScriptPathOnDisk = vscode.Uri.file(path.join(this._extensionPath,'client', 'build', scriptEntryPoints[2]));
-		const staticScriptUri = staticScriptPathOnDisk.with({ scheme: 'vscode-resource' });
-
+		//const staticScriptUri = staticScriptPathOnDisk.with({ scheme: 'vscode-resource' });
+		const staticScriptUri = this._panel.webview.asWebviewUri(staticScriptPathOnDisk);
 
 		const stylePathOnDisk = vscode.Uri.file(path.join(this._extensionPath, 'client','build', styleEntryPoints[0]));
-		const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+		//const styleUri = stylePathOnDisk.with({ scheme: 'vscode-resource' });
+		const styleUri = this._panel.webview.asWebviewUri(stylePathOnDisk);
 		console.log(`scriptUri ${scriptUri}`);
 		console.log(`styleUri ${styleUri}`);
 		//Added for UI Changes - ends
@@ -1006,6 +1057,12 @@ private getMetadataTypes(mpExistingPackageXML){
 		// Use a nonce to whitelist which scripts can be run
 		const nonce = getNonce();
 
+		 // Base CSP directive
+		 const cspSource = this._panel.webview.cspSource;
+
+		 // Define the allowed resources path
+		 const resourcePathUri = this._panel.webview.asWebviewUri(vscode.Uri.file(path.join(this._extensionPath, '')));
+
 		return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -1020,14 +1077,14 @@ private getMetadataTypes(mpExistingPackageXML){
 				<!--
 				<meta
 				http-equiv="Content-Security-Policy"
-				content="default-src 'none'; img-src vscode-resource: https:; script-src vscode-resource: https:; style-src vscode-resource: https:;"
+				content="default-src 'none'; img-src 'vscode-resource:' https:; script-src 'vscode-resource:' https:; style-src 'vscode-resource:' https:;"
 			  	/>
 			   	-->
-			 <!-- Added for UI Changes--> 
-			  <meta http-equiv="Content-Security-Policy" content="default-src *; 
-			  connect-src vscode-resource: https:;
-			  img-src vscode-resource: https:; style-src 'unsafe-inline' vscode-resource: https:; 
-			  script-src 'self' 'unsafe-inline' 'unsafe-eval' vscode-resource: https:">
+			 	<!-- Added for UI Changes--> 
+			  	<meta http-equiv="Content-Security-Policy" content="default-src; 
+			  connect-src vscode-resource: https: ${cspSource};
+			  img-src vscode-resource: https: ${cspSource} ${resourcePathUri}; style-src 'unsafe-inline' vscode-resource: https: ${cspSource}; 
+			  script-src 'self' 'unsafe-inline' 'unsafe-eval' vscode-resource: https: ${cspSource}">
 
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
